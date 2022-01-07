@@ -1,0 +1,168 @@
+<html>
+
+<head>
+<script src="jquery.min.js"></script>
+<script src="bitcore-lib.min.js"></script>
+<script src="mnemonic.js"></script>
+</head>
+
+<script>
+var bc = require('bitcore-lib'),
+    network = bc.Networks['mainnet'];
+
+function getAddress(secret, derivation, network, index) {
+  try {
+    return bc.Address(derivation.publicKey, network).toString();
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+function getPrivKey(derivation) {
+  try {
+    return derivation.privateKey.toWIF();
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+$(document).ready(function(){
+  var $passphrase = $('#passphrase'),
+      path = "m/0'/0",
+      s = null,
+      max = null,
+      index = 0;
+
+  var addItem = function(address, privKey, index) {
+    return '<div id="'+ address + '"><div class="index">#' + index + '</div><div class="address">' + address + '</div><input class="priv-key" value="' + privKey + '"></div>';
+  }
+
+  $('#generate').click(function() {
+    var passphrase = $passphrase.val();
+    max = parseInt($('#max').val());
+    
+
+    if (passphrase && max > 0) {
+      var wallet = Mnemonic.fromWords(passphrase.trim().split(" ")).toHex();
+      s = bc.HDPrivateKey.fromSeed(wallet, network);
+
+      var list = [];
+
+      for (var i = 0; i < max; i++) {
+        var d = s.derive("m/0'/0/" + i),
+            address = getAddress(s, d, network, i);
+            privateKey = getPrivKey(d);
+
+        list.push(addItem(address, privateKey, i));
+        index++;
+      }
+
+      $('#append').show();
+      $('#list').html(list);
+      $('.search').show();
+      $('#max').attr('disabled', 'disabled');
+    }
+  });
+
+  $('#append').click(function() {
+    var list = [],
+        i = index;
+
+    for (i = index; i < (max+index); i++) {
+        var d = s.derive("m/0'/0/" + i),
+            address = getAddress(s, d, network, i);
+            privateKey = getPrivKey(d);
+
+        list.push(addItem(address, privateKey, i));
+    }
+
+    index = i;
+
+    $('#list').append(list);
+  });
+
+  $('#search').click(function(e) {
+    e.preventDefault();
+
+    var query = $('#search-input').val().trim();
+
+    if (query) {
+      $('#list > div').hide();
+      $('#' + query).show();
+      $('#reset').show();
+    }
+  });
+
+  $('#reset').click(function() {
+    $('#list > div').show();
+    $('#reset').hide();
+  });
+});
+</script>
+<style>
+#list {
+  width: 100%;
+  margin-top: 40px;
+  float: left;
+  min-width: 900px;
+}
+
+#list > div {
+  float: left;
+  width: 100%;
+}
+
+input {
+  width: 100%;
+}
+
+#max { 
+  width: 60px;
+}
+.index {
+  width: 5%;
+  float: left;
+}
+.address {
+  width: 35%;
+  float: left;
+}
+.priv-key {
+  width: 60%;
+  float: right;
+}
+
+#append {
+  display: none;
+}
+
+.search {
+  display: none;
+}
+
+#reset {
+  width: 50px;
+  display: none;
+}
+</style>
+<body>
+
+<input type="text" name="passphrase" id="passphrase" placeholder="type in your 12 word passphrase" value="">
+<input type="number" step="1" value="10" id="max"> <button name="generate" id="generate">Get addresses</button>
+<br><br>
+<button name="append" id="append">Get more</button>
+
+<br><br>
+
+<div class="search">
+<form>
+<input type="text" id="search-input" placeholder="Type address you want to search for">
+<button name="search" id="search">Search address</button>
+<input type="reset" id="reset" value="reset">
+</form>
+</div>
+
+<div id="list"></div>
+    
+</body>
+</html>
